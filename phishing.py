@@ -110,7 +110,7 @@ def evaluate(args, task, model):
 
 def main(data_dir: str = "",
          ntrain: int = 5,
-         model_path: str = '/home/jaeyoung/llama/llama-2-7b-hf',
+         model_path: str = '/home/ailab/HardDrive/sue991/llama/models/llama-2-7b-hf',
          max_seq_len: int = 2048,
          max_gen_len: int = 8,
          device: int = 0,
