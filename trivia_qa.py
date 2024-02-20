@@ -98,7 +98,7 @@ def evaluate(args, task, model):
 
 def main(data_dir: str = "trivia_qa",
          # ntrain: int = 5,
-         model_path: str = './models/llama-2-7b-hf',
+         model_path: str = '/home/ailab/HardDrive/sue991/llama/models/llama-2-7b-hf',
          max_seq_len: int = 4096,
          max_gen_len: int = 128,
          device: int = 0,

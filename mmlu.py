@@ -187,7 +187,7 @@ def evaluate(args, subject, model, dev_df, test_df):
 def main(
         data_dir: str = "data/seed_42",
         ntrain: int = 5,
-        model_path: str = '/home/jaeyoung/llama/llama-2-7b-hf',
+        model_path: str = "/home/ailab/HardDrive/sue991/llama/models/llama-2-7b-hf", # '/home/jaeyoung/llama/llama-2-7b-hf',
         max_seq_len: int = 2048,
         max_gen_len: int = 2,
         device: str = '1',
