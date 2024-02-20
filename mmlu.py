@@ -123,7 +123,8 @@ def format_example(df, idx, include_answer=True):
 
 
 def gen_prompt(df, subject, k=-1):
-    prompt = "The following are multiple choice questions (with answers) about {}.\n\n".format(format_subject(subject))
+    prompt = "The following are multiple choice questions (with answers) about {}.\n\n".format(
+        format_subject(subject))
 
     if k == -1:
         k = df.shape[0]
@@ -183,38 +184,39 @@ def evaluate(args, subject, model, dev_df, test_df):
     return cors, acc, all_probs, result_dict
 
 
-def main(data_dir: str = "data/seed_42",
-         ntrain: int = 5,
-         model_path: str = '/home/jaeyoung/llama/llama-2-7b-hf',
-         max_seq_len: int = 2048,
-         max_gen_len: int = 2,
-         device: str = '1',
-         attn_type: str = 'origin',
-         # max_batch_size: int = 1,
-         **kwargs):
+def main(
+        data_dir: str = "data/seed_42",
+        ntrain: int = 5,
+        model_path: str = '/home/jaeyoung/llama/llama-2-7b-hf',
+        max_seq_len: int = 2048,
+        max_gen_len: int = 2,
+        device: str = '1',
+        attn_type: str = 'origin',
+        # max_batch_size: int = 1,
+        **kwargs):
     args = Namespace(**locals())  # local variables
 
     # model = select_model(max_input_length=1024, max_output_length=2, **kwargs)
-    model = CustomLlamaStructure(args.model_path,
-                                 max_input_length=max_seq_len,
-                                 max_output_length=max_gen_len,
-                                 device=f"cuda:{device}" if device != 'cpu' else 'cpu',
-                                 attn_type=attn_type,
-                                 )
+    model = CustomLlamaStructure(
+        args.model_path,
+        max_input_length=max_seq_len,
+        max_output_length=max_gen_len,
+        device=f"cuda:{device}" if device != 'cpu' else 'cpu',
+        attn_type=attn_type,
+    )
 
     print(locals())
 
-    subjects = sorted(
-        [
-            f.split("_test.csv")[0]
-            for f in os.listdir(os.path.join(args.data_dir, "test"))
-            if f.endswith("_test.csv")
-        ]
-    )
+    subjects = sorted([
+        f.split("_test.csv")[0]
+        for f in os.listdir(os.path.join(args.data_dir, "test"))
+        if f.endswith("_test.csv")
+    ])
 
     all_cors = []
     subcat_cors = {
-        subcat: [] for subcat_lists in get_subcategories().values()
+        subcat: []
+        for subcat_lists in get_subcategories().values()
         for subcat in subcat_lists
     }
     cat_cors = {cat: [] for cat in get_categories()}
@@ -223,10 +225,15 @@ def main(data_dir: str = "data/seed_42",
     inference_dict = {'subject': [], 'question': [], 'label': [], 'pred': []}
 
     for i, subject in enumerate(tqdm(subjects)):
-        dev_df = pd.read_csv(os.path.join(args.data_dir, "dev", f"{subject}_dev.csv"), header=None)[: args.ntrain]
-        test_df = pd.read_csv(os.path.join(args.data_dir, "test", f"{subject}_test.csv"), header=None)
+        dev_df = pd.read_csv(os.path.join(args.data_dir, "dev",
+                                          f"{subject}_dev.csv"),
+                             header=None)[:args.ntrain]
+        test_df = pd.read_csv(os.path.join(args.data_dir, "test",
+                                           f"{subject}_test.csv"),
+                              header=None)
 
-        cors, acc, probs, result_dict = evaluate(args, subject, model, dev_df, test_df)
+        cors, acc, probs, result_dict = evaluate(args, subject, model, dev_df,
+                                                 test_df)
         subcats = get_subcategories()[subject]
         subjects_acc[subject] = acc
         for subcat in subcats:
@@ -260,9 +267,15 @@ def main(data_dir: str = "data/seed_42",
         print("Average accuracy {:.3f} - {}".format(cat_acc, cat))
         cat_accs[cat] = cat_acc
 
-    subjects_result = pd.DataFrame.from_dict(subjects_acc, orient='index', columns=['acc'])
-    subcat_result = pd.DataFrame.from_dict(subcat_accs, orient='index', columns=['acc'])
-    cat_result = pd.DataFrame.from_dict(cat_accs, orient='index', columns=['acc'])
+    subjects_result = pd.DataFrame.from_dict(subjects_acc,
+                                             orient='index',
+                                             columns=['acc'])
+    subcat_result = pd.DataFrame.from_dict(subcat_accs,
+                                           orient='index',
+                                           columns=['acc'])
+    cat_result = pd.DataFrame.from_dict(cat_accs,
+                                        orient='index',
+                                        columns=['acc'])
     inference_result = pd.DataFrame(inference_dict)
 
     subjects_result.to_csv(os.path.join(save_dir, 'subjects_result.csv'))

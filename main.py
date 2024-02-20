@@ -3,7 +3,7 @@ import mmlu
 # import pretraining
 import trivia_qa
 import phishing
-import earnings_qa
+# import earnings_qa
 import torch
 import numpy as np
 import random
@@ -21,7 +21,7 @@ def main(task_name: str,  **kwargs):
         phishing=phishing.main,
         # pretrain=pretraining.main,
         trivia_qa=trivia_qa.main,
-        earnings_qa=earnings_qa.main,
+        # earnings_qa=earnings_qa.main,
     )
 
     if task_name in task_map.keys():
