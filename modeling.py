@@ -98,26 +98,37 @@ LLAMA_INPUTS_DOCSTRING = r"""
 
 
 # Copied from transformers.models.bart.modeling_bart._make_causal_mask
-def _make_causal_mask(
-        input_ids_shape: torch.Size, dtype: torch.dtype, device: torch.device, past_key_values_length: int = 0
-):
+def _make_causal_mask(input_ids_shape: torch.Size,
+                      dtype: torch.dtype,
+                      device: torch.device,
+                      past_key_values_length: int = 0):
     """
     Make causal mask used for bi-directional self-attention.
     """
     bsz, tgt_len = input_ids_shape
-    mask = torch.full((tgt_len, tgt_len), torch.finfo(dtype).min, device=device)
+    mask = torch.full((tgt_len, tgt_len),
+                      torch.finfo(dtype).min,
+                      device=device)
     mask_cond = torch.arange(mask.size(-1), device=device)
     mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
     mask = mask.to(dtype)
 
     if past_key_values_length > 0:
-        mask = torch.cat([torch.zeros(tgt_len, past_key_values_length, dtype=dtype, device=device), mask], dim=-1)
-    return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)
+        mask = torch.cat([
+            torch.zeros(
+                tgt_len, past_key_values_length, dtype=dtype, device=device),
+            mask
+        ],
+                         dim=-1)
+    return mask[None, None, :, :].expand(bsz, 1, tgt_len,
+                                         tgt_len + past_key_values_length)
 
 
-def _make_constant_mask(
-        input_ids_shape: torch.Size, dtype: torch.dtype, device: torch.device, value, past_key_values_length: int = 0
-):
+def _make_constant_mask(input_ids_shape: torch.Size,
+                        dtype: torch.dtype,
+                        device: torch.device,
+                        value,
+                        past_key_values_length: int = 0):
     """
     Make causal mask used for bi-directional self-attention.
     """
@@ -128,39 +139,60 @@ def _make_constant_mask(
     mask = mask.to(dtype)
 
     if past_key_values_length > 0:
-        mask = torch.cat([torch.zeros(tgt_len, past_key_values_length, dtype=dtype, device=device), mask], dim=-1)
-    return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)
+        mask = torch.cat([
+            torch.zeros(
+                tgt_len, past_key_values_length, dtype=dtype, device=device),
+            mask
+        ],
+                         dim=-1)
+    return mask[None, None, :, :].expand(bsz, 1, tgt_len,
+                                         tgt_len + past_key_values_length)
 
 
 def _make_instruction_mask(
-        input_ids_shape: torch.Size, dtype: torch.dtype, prompt_length, device: torch.device,
-        past_key_values_length: int = 0,
+    input_ids_shape: torch.Size,
+    dtype: torch.dtype,
+    prompt_length,
+    device: torch.device,
+    past_key_values_length: int = 0,
 ):
     bsz, tgt_len = input_ids_shape
-    mask = torch.full((tgt_len, tgt_len), torch.finfo(dtype).min, device=device)
+    mask = torch.full((tgt_len, tgt_len),
+                      torch.finfo(dtype).min,
+                      device=device)
     mask_cond = torch.arange(mask.size(-1), device=device)
     mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
     # make instruction mask for the first self.prompt_length tokens
     mask[:, :prompt_length] = 0
 
     if past_key_values_length > 0:
-        mask = torch.cat([torch.zeros(tgt_len, past_key_values_length, dtype=dtype, device=device), mask], dim=-1)
-    return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)
+        mask = torch.cat([
+            torch.zeros(
+                tgt_len, past_key_values_length, dtype=dtype, device=device),
+            mask
+        ],
+                         dim=-1)
+    return mask[None, None, :, :].expand(bsz, 1, tgt_len,
+                                         tgt_len + past_key_values_length)
 
 
 # Copied from transformers.models.bart.modeling_bart._expand_mask
-def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] = None):
+def _expand_mask(mask: torch.Tensor,
+                 dtype: torch.dtype,
+                 tgt_len: Optional[int] = None):
     """
     Expands attention_mask from `[bsz, seq_len]` to `[bsz, 1, tgt_seq_len, src_seq_len]`.
     """
     bsz, src_len = mask.size()
     tgt_len = tgt_len if tgt_len is not None else src_len
 
-    expanded_mask = mask[:, None, None, :].expand(bsz, 1, tgt_len, src_len).to(dtype)
+    expanded_mask = mask[:, None, None, :].expand(bsz, 1, tgt_len,
+                                                  src_len).to(dtype)
 
     inverted_mask = 1.0 - expanded_mask
 
-    return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
+    return inverted_mask.masked_fill(inverted_mask.to(torch.bool),
+                                     torch.finfo(dtype).min)
 
 
 class CustomLlamaModel(LlamaModel):
@@ -173,7 +205,8 @@ class CustomLlamaModel(LlamaModel):
         self.prompt_length = length
 
     # Copied from transformers.models.bart.modeling_bart.BartDecoder._prepare_decoder_attention_mask
-    def _prepare_decoder_attention_mask(self, attention_mask, input_shape, inputs_embeds, past_key_values_length):
+    def _prepare_decoder_attention_mask(self, attention_mask, input_shape,
+                                        inputs_embeds, past_key_values_length):
         # create causal mask
         # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
         combined_attention_mask = None
@@ -234,12 +267,14 @@ class CustomLlamaModel(LlamaModel):
 
         if attention_mask is not None:
             # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
-            expanded_attn_mask = _expand_mask(attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1]).to(
-                inputs_embeds.device
-            )
-            combined_attention_mask = (
-                expanded_attn_mask if combined_attention_mask is None else expanded_attn_mask + combined_attention_mask
-            )
+            expanded_attn_mask = _expand_mask(attention_mask,
+                                              inputs_embeds.dtype,
+                                              tgt_len=input_shape[-1]).to(
+                                                  inputs_embeds.device)
+            combined_attention_mask = (expanded_attn_mask
+                                       if combined_attention_mask is None else
+                                       expanded_attn_mask +
+                                       combined_attention_mask)
 
         return combined_attention_mask
 
@@ -248,7 +283,8 @@ class CustomLlamaForCasualLM(LlamaForCausalLM):
     def __init__(self, config, **kwargs):
         super().__init__(config)
         self.prompt_length = None
-        config.attn_type = kwargs.get('attn_type') if kwargs.get('attn_type') else 'origin'
+        config.attn_type = kwargs.get('attn_type') if kwargs.get(
+            'attn_type') else 'origin'
 
         self.model = CustomLlamaModel(config)
 
@@ -256,19 +292,20 @@ class CustomLlamaForCasualLM(LlamaForCausalLM):
         self.prompt_length = length
 
     @add_start_docstrings_to_model_forward(LLAMA_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=CausalLMOutputWithPast, config_class=_CONFIG_FOR_DOC)
+    @replace_return_docstrings(output_type=CausalLMOutputWithPast,
+                               config_class=_CONFIG_FOR_DOC)
     def forward(
-            self,
-            input_ids: torch.LongTensor = None,
-            attention_mask: Optional[torch.Tensor] = None,
-            position_ids: Optional[torch.LongTensor] = None,
-            past_key_values: Optional[List[torch.FloatTensor]] = None,
-            inputs_embeds: Optional[torch.FloatTensor] = None,
-            labels: Optional[torch.LongTensor] = None,
-            use_cache: Optional[bool] = None,
-            output_attentions: Optional[bool] = None,
-            output_hidden_states: Optional[bool] = None,
-            return_dict: Optional[bool] = None,
+        self,
+        input_ids: torch.LongTensor = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
+        past_key_values: Optional[List[torch.FloatTensor]] = None,
+        inputs_embeds: Optional[torch.FloatTensor] = None,
+        labels: Optional[torch.LongTensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
         Args:
@@ -297,9 +334,9 @@ class CustomLlamaForCasualLM(LlamaForCausalLM):
         ```"""
 
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
-        )
+        output_hidden_states = (output_hidden_states
+                                if output_hidden_states is not None else
+                                self.config.output_hidden_states)
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         if self.prompt_length is not None:
@@ -320,8 +357,13 @@ class CustomLlamaForCasualLM(LlamaForCausalLM):
 
         hidden_states = outputs[0]
         if self.pretraining_tp > 1:
-            lm_head_slices = self.lm_head.weight.split(self.vocab_size // self.pretraining_tp, dim=0)
-            logits = [F.linear(hidden_states, lm_head_slices[i]) for i in range(self.pretraining_tp)]
+            lm_head_slices = self.lm_head.weight.split(self.vocab_size //
+                                                       self.pretraining_tp,
+                                                       dim=0)
+            logits = [
+                F.linear(hidden_states, lm_head_slices[i])
+                for i in range(self.pretraining_tp)
+            ]
             logits = torch.cat(logits, dim=-1)
         else:
             logits = self.lm_head(hidden_states)
@@ -341,8 +383,8 @@ class CustomLlamaForCasualLM(LlamaForCausalLM):
             loss = loss_fct(shift_logits, shift_labels)
 
         if not return_dict:
-            output = (logits,) + outputs[1:]
-            return (loss,) + output if loss is not None else output
+            output = (logits, ) + outputs[1:]
+            return (loss, ) + output if loss is not None else output
 
         return CausalLMOutputWithPast(
             loss=loss,
@@ -354,11 +396,18 @@ class CustomLlamaForCasualLM(LlamaForCausalLM):
 
 
 class CustomLlamaStructure(nn.Module):
-    def __init__(self, model_name_or_path, max_input_length=1024, max_output_length=2, device='cuda:1', **kwargs):
+    def __init__(self,
+                 model_name_or_path,
+                 max_input_length=1024,
+                 max_output_length=2,
+                 device='cuda:1',
+                 **kwargs):
         super().__init__()
         self.max_input_length = max_input_length
         self.max_output_length = max_output_length
-        self.model = LlamaForCausalLM.from_pretrained(model_name_or_path, device_map="auto", **kwargs)
+        self.model = LlamaForCausalLM.from_pretrained(model_name_or_path,
+                                                      device_map="auto",
+                                                      **kwargs)
         self.tokenizer = LlamaTokenizer.from_pretrained(model_name_or_path)
         self.model
         self.model.eval()
@@ -380,11 +429,11 @@ class CustomLlamaStructure(nn.Module):
         if self.prompt_length is not None:
             self.model.save_prompt_length(self.prompt_length)
 
-        inputs = self.tokenizer(prompt,
-                                return_tensors='pt')
+        inputs = self.tokenizer(prompt, return_tensors='pt')
         outputs = self.model.generate(
             **inputs,
             max_new_tokens=self.max_output_length,
         )
         batch_size, length = inputs.input_ids.shape
-        return self.tokenizer.decode(outputs[0, length:], skip_special_tokens=True)
+        return self.tokenizer.decode(outputs[0, length:],
+                                     skip_special_tokens=True)
