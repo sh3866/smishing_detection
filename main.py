@@ -18,10 +18,10 @@ def main(task_name: str, **kwargs):
     print(f"Running task {task_name} with kwargs {kwargs}")
 
     task_map = dict(
-        mmlu=mmlu.main,
+        # mmlu=mmlu.main,
         phishing=phishing.main,
         # pretrain=pretraining.main,
-        trivia_qa=trivia_qa.main,
+        # trivia_qa=trivia_qa.main,
         # earnings_qa=earnings_qa.main,
     )
 
