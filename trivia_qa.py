@@ -15,7 +15,9 @@ from utils.base import make_save_dir
 
 class Triviaqa:
     def __init__(self, data_dir, cache_dir):
-        self.dataset = load_dataset(data_dir, 'rc.nocontext', cache_dir=cache_dir)
+        self.dataset = load_dataset(data_dir,
+                                    'rc.nocontext',
+                                    cache_dir=cache_dir)
 
         self.training_docs = list(self.dataset['train'])
         self.validation_docs = self.dataset['validation']
@@ -34,14 +36,10 @@ class Triviaqa:
             labeled_examples = ""
         else:
             fewshot_texts = self.fewshot_examples(k, rnd)
-            labeled_examples = (
-                    "\n\n".join(
-                        [
-                            self.doc_to_text(doc) + self.doc_to_target(doc) for doc in fewshot_texts
-                        ]
-                    )
-                    + "\n\n"
-            )
+            labeled_examples = ("\n\n".join([
+                self.doc_to_text(doc) + self.doc_to_target(doc)
+                for doc in fewshot_texts
+            ]) + "\n\n")
         example = self.doc_to_text(doc)
         return labeled_examples + example
 
@@ -55,26 +53,34 @@ def evaluate(args, task, model):
 
     rnd.shuffle(task_docs)
 
-    result_dict = {'prompt': [], 'question': [], 'alias': [], 'label': [], 'pred': [], 'em': []}
+    result_dict = {
+        'prompt': [],
+        'question': [],
+        'alias': [],
+        'label': [],
+        'pred': [],
+        'em': []
+    }
     all_em = []
 
     for doc_id, doc in enumerate(tqdm(task_docs)):
         prompt = task.fewshot_context(doc, args.k, rnd)
 
-
         # TODO: token length of question prompt
         if 'inst' in args.attn_type:
             prompt_length = model.save_prompt_length(prompt)
-
 
         pred = model.run(prompt)
 
         for term in ["\n", ".", ","]:
             pred = pred.split(term)[0]
 
-        result = pred.strip().lower().translate(str.maketrans('', '', string.punctuation))
-        list_of_candidates = [alias.lower().translate(str.maketrans('', '', string.punctuation)) for alias in
-                              doc["answer"]["aliases"]]
+        result = pred.strip().lower().translate(
+            str.maketrans('', '', string.punctuation))
+        list_of_candidates = [
+            alias.lower().translate(str.maketrans('', '', string.punctuation))
+            for alias in doc["answer"]["aliases"]
+        ]
 
         # exact match
         em = float(result in list_of_candidates)
@@ -96,26 +102,29 @@ def evaluate(args, task, model):
     return acc, result_dict
 
 
-def main(data_dir: str = "trivia_qa",
-         # ntrain: int = 5,
-         model_path: str = '/home/ailab/HardDrive/sue991/llama/models/llama-2-7b-hf',
-         max_seq_len: int = 4096,
-         max_gen_len: int = 128,
-         device: int = 0,
-         attn_type: str = 'origin',
-         cache_dir='./data/trivia_qa',
-         k: int = 0,
-         # max_batch_size: int = 1,
-         **kwargs):
+def main(
+        data_dir: str = "trivia_qa",
+        # ntrain: int = 5,
+        model_path:
+    str = '/home/ailab/HardDrive/sue991/llama/models/llama-2-7b-hf',
+        max_seq_len: int = 4096,
+        max_gen_len: int = 128,
+        device: int = 0,
+        attn_type: str = 'origin',
+        cache_dir='./data/trivia_qa',
+        k: int = 0,
+        # max_batch_size: int = 1,
+        **kwargs):
     args = Namespace(**locals())  # local variables
     print(locals())
 
-    model = CustomLlamaStructure(args.model_path,
-                                 max_input_length=max_seq_len,
-                                 max_output_length=max_gen_len,
-                                 device=f"cuda:{device}" if device != 'cpu' else 'cpu',
-                                 attn_type=attn_type,
-                                 )
+    model = CustomLlamaStructure(
+        args.model_path,
+        max_input_length=max_seq_len,
+        max_output_length=max_gen_len,
+        device=f"cuda:{device}" if device != 'cpu' else 'cpu',
+        attn_type=attn_type,
+    )
 
     # dataset = load_dataset(data_dir, 'rc.nocontext', cache_dir=cache_dir)
     # validation_dataset = dataset['validation'].map(format_dataset, remove_columns=["search_results", "question_source", "entity_pages", "answer", "question_id"])
