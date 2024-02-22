@@ -3,12 +3,10 @@ Adapted from https://github.com/hendrycks/test/blob/master/evaluate_flan.py
 """
 
 from ast import arg
-from email.quoprimime import header_check
 import os
 from argparse import Namespace
 from re import T
 import time
-import random
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -18,7 +16,6 @@ import torch
 
 # from modeling_origin import select_model
 from modeling import CustomLlamaStructure
-from utils.base import make_save_dir
 from sklearn.metrics import f1_score, recall_score, precision_score
 
 # from llama import Llama
@@ -27,9 +24,13 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
 class Phishing:
-    def __init__(self, seed) -> None:
+    def __init__(self, k, seed, save_results_path) -> None:
+        self.k = k
         self.seed = seed
-        data_dir: str = f"data/seed_{seed}"
+        self.save_results_path = save_results_path
+        self.demonstrate = None
+
+        data_dir: str = f"data/seed_42"  # 평가할 데이터는 고정해야한다.
         self.train_df = pd.read_csv(f"{data_dir}/data_train.csv")
         self.valid_df = pd.read_csv(f"{data_dir}/data_valid.csv")
         self.test_df = pd.read_csv(f"{data_dir}/data_test.csv")
@@ -40,41 +41,52 @@ class Phishing:
     def doc_to_target(self, doc):
         return " " + doc["LABEL"]
 
-    def fewshot_examples(self, k):
-        return self.train_df.sample(k, random_state=self.seed)
+    def fewshot_examples(self):
+        sampled_data = self.train_df.sample(self.k, random_state=self.seed)
+        if self.save_results_path:
+            sampled_data.to_csv(
+                f"{self.save_results_path}/fewshot_{self.k}_seed_{self.seed}_example.txt",
+                sep='\t',
+                index=False)
+        return sampled_data
 
-    def fewshot_context(self, doc, k):
-        # Please distinguish whether the following text messages are written for phishing purposes or not.
+    def init_demonstrate(self):
         instruction = "You are a security officer. \nClassify the following SMS as 'Ham', 'Spam', 'Smishing' \n\n"
         labeled_examples = ""
-        if k == 0:
+        if self.k == 0:
             labeled_examples = ""
         else:
-            fewshot_texts = self.fewshot_examples(k)
+            fewshot_texts = self.fewshot_examples()
             labeled_examples = ("\n\n".join([
                 self.doc_to_text(fewshot_texts.iloc[idx]) +
                 self.doc_to_target(fewshot_texts.iloc[idx])
                 for idx in range(len(fewshot_texts))
             ]) + "\n\n")
+
+        return instruction + labeled_examples
+
+    def fewshot_context(self, doc):
+        if self.demonstrate == None:
+            self.demonstrate = self.init_demonstrate()
         example = self.doc_to_text(doc)
-        return instruction + labeled_examples + example
+        return self.demonstrate + example
+
+    def get_prompt(self, idx):
+        task_docs = self.test_df.sample(frac=1)
+        print(f"Number of dcos: {len(task_docs)}")
+
+        doc = task_docs.iloc[idx]
+        prompt = self.fewshot_context(doc)
+        label = doc['LABEL']
+        return prompt, label
 
 
-def evaluate(args, task, model):
-
-    # random shuffle
-    task_docs = task.test_df
-    task_docs = task_docs.sample(frac=1)  # shuffle test set
-    print(f"Task: {args.data_dir}; number of docs: {len(task_docs)}")
-
-    result_dict = {'text': [], 'label': [], 'pred': []}
-
+def evaluate(task, model):
+    result_dict = {'label': [], 'pred': []}
     all_acc = []
 
-    for idx in tqdm(range(len(task_docs))):
-        doc = task_docs.iloc[idx]
-        prompt = task.fewshot_context(doc, args.k)
-        label = doc['LABEL']
+    for idx in tqdm(range(len(task.test_df))):
+        prompt, label = task.get_prompt(idx)
         pred = model.run(prompt)
 
         for term in ["\n", ".", ","]:
@@ -82,7 +94,7 @@ def evaluate(args, task, model):
         pred = pred.strip().lower().translate(
             str.maketrans('', '', string.punctuation))
 
-        result_dict['text'].append(prompt)
+        # result_dict['text'].append(prompt)
         result_dict['label'].append(label)
         result_dict['pred'].append(pred)
 
@@ -112,6 +124,7 @@ def main(
         # ntrain: int = 5,
         model_path:
     str = '/home/ailab/HardDrive/sue991/llama/models/llama-2-7b-hf',
+        save_results_path: str = './results/phishing/',  # 결과 저장 경로 추가
         max_seq_len: int = 2048,
         max_gen_len: int = 8,
         attn_type: str = 'origin',
@@ -135,28 +148,26 @@ def main(
     )
     print(f"Loading time: {time.time() - start:.3f} sec")
 
-    task = Phishing(seed=seed)
+    task = Phishing(k=k, seed=seed, save_results_path=save_results_path)
     subjects_acc = {}
     inference_dict = {'label': [], 'pred': []}
 
-    all_acc, acc, f1, recall, precision, result_dict = evaluate(
-        args, task, model)
+    all_acc, acc, f1, recall, precision, result_dict = evaluate(task, model)
 
     # save_results
-    if not os.path.exists('./results/phishing/'):
-        os.makedirs('./results/phishing/')
-
-    save_dir = make_save_dir('phishing', attn_type)
+    if not os.path.exists(save_results_path):
+        os.makedirs(save_results_path)
 
     df = pd.DataFrame(result_dict)
-    df.to_csv(os.path.join(save_dir, f'fewshot_{k}_seed_{seed}_result.csv'),
+    df.to_csv(os.path.join(save_results_path,
+                           f'fewshot_{k}_seed_{seed}_result.csv'),
               index=False)
 
-    with open(os.path.join(save_dir, f'fewshot_{k}_seed_{seed}_acc.txt'),
-              'w') as f:
-        f.write(
-            "ACC:" + str(acc) + "\tF1:" + str(f1) + "\tRecall:" + str(recall),
-            "\tPrecision:" + str(precision))
+    with open(
+            os.path.join(save_results_path,
+                         f'fewshot_{k}_seed_{seed}_acc.txt'), 'w') as f:
+        f.write("ACC:" + str(acc) + "\tF1:" + str(f1) + "\tRecall:" +
+                str(recall) + "\tPrecision:" + str(precision))
 
     return acc
 
