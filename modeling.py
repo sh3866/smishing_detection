@@ -400,7 +400,7 @@ class CustomLlamaStructure(nn.Module):
                  model_name_or_path,
                  max_input_length=1024,
                  max_output_length=2,
-                 device='cuda:1',
+                 device=None,
                  **kwargs):
         super().__init__()
         self.max_input_length = max_input_length
@@ -409,9 +409,9 @@ class CustomLlamaStructure(nn.Module):
                                                       device_map="auto",
                                                       **kwargs)
         self.tokenizer = LlamaTokenizer.from_pretrained(model_name_or_path)
-        self.model
         self.model.eval()
         self.prompt_length = None
+        self.device = device
 
     def save_prompt_length(self, instruction):
         self.prompt_length = self.count_text_length(instruction)
@@ -430,6 +430,8 @@ class CustomLlamaStructure(nn.Module):
             self.model.save_prompt_length(self.prompt_length)
 
         inputs = self.tokenizer(prompt, return_tensors='pt')
+        inputs.input_ids = inputs.input_ids.to(self.device)
+        
         outputs = self.model.generate(
             **inputs,
             max_new_tokens=self.max_output_length,

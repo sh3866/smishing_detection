@@ -1,12 +1,14 @@
+import random
 from fire import Fire
-import mmlu
+import numpy as np
+
+import torch
+
+# import mmlu
 # import pretraining
-import trivia_qa
+# import trivia_qa
 import phishing
 # import earnings_qa
-import torch
-import numpy as np
-import random
 
 
 def main(task_name: str, **kwargs):
