@@ -21,9 +21,10 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
 class Phishing:
-    def __init__(self, k, imb, seed, save_results_path) -> None:
+    def __init__(self, k, imb, cot, seed, save_results_path) -> None:
         self.k = k
         self.imb = imb
+        self.cot = cot
         self.seed = seed
         self.save_results_path = save_results_path
         self.demonstrate = None
@@ -34,7 +35,8 @@ class Phishing:
         self.test_df = pd.read_csv(f"{data_dir}/data_test.csv")
 
     def doc_to_text(self, doc):
-        return f"SMS: {doc['TEXT']}\nHint: URL: {doc['URL']}; Email: {doc['EMAIL']}; Phone: {doc['PHONE']}.\n Answer:"
+        cot_text = "Let's think step by step. " if self.cot else ""
+        return f"SMS: {doc['TEXT']}\nHint: URL: {doc['URL']}; Email: {doc['EMAIL']}; Phone: {doc['PHONE']}.\n Answer: {cot_text}"
 
     def doc_to_target(self, doc):
         return " " + doc["LABEL"]
@@ -47,7 +49,7 @@ class Phishing:
                 'LABEL_ID', group_keys=False).apply(
                     lambda x: x.sample(n=split_num, random_state=self.seed))
             demonstrate_data = demonstrate_data.sample(frac=1)
-            
+
         if self.save_results_path:
             demonstrate_data.to_csv(
                 f"{self.save_results_path}/demonstrate_data.csv", index=False)
@@ -104,7 +106,7 @@ def evaluate(task, model):
         all_acc.append(acc)
         if label != pred:
             incorrect_indices.append(idx)  # Track incorrect prediction index
-            
+
     acc = np.mean(all_acc)
     all_acc = np.array(all_acc)
 
@@ -133,7 +135,8 @@ def main(
         max_gen_len: int = 8,
         attn_type: str = 'origin',
         k: int = 0,
-        imb=True,
+        imb=False,
+        cot=False,
         seed=42,
         device: int = 0,
         # max_batch_size: int = 1,
@@ -154,13 +157,16 @@ def main(
 
     # make dir
     if save_results_path is None:
-        save_results_path = f'./results/phishing/fewshot_{k}/seed_{seed}/'
+        cot_path = "cot/" if cot else ""
+        imb_path = "" if imb else "no_imb/"
+        save_results_path = f'./results/phishing/fewshot_{k}/seed_{seed}/{cot_path}{imb_path}'
     if not os.path.exists(save_results_path):
         os.makedirs(save_results_path)
 
     print(f"Loading time: {time.time() - start:.3f} sec")
     task = Phishing(k=k,
                     imb=imb,
+                    cot=cot,
                     seed=seed,
                     save_results_path=save_results_path)
 

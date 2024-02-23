@@ -3,7 +3,7 @@ import glob
 import pandas as pd
 from fire import Fire
 
-from sklearn.metrics import f1_score, recall_score, accuracy_score
+from sklearn.metrics import f1_score, recall_score, accuracy_score, classification_report
 
 
 def main(path: str):
@@ -15,6 +15,7 @@ def main(path: str):
     f1 = f1_score(df['label'], df['pred'], average='macro')
     recall = recall_score(df['label'], df['pred'], average='macro')
     print("ACC:", acc, "\nF1:", f1, "\nRecall:", recall)
+    print(classification_report(df['label'], df['pred']))
 
 
 if __name__ == '__main__':
